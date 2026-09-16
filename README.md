@@ -1,4 +1,4 @@
-# Intelligent Border Surveillance Platform
+# PRAMAN DRISHTI(Provable Risk & Analytics Network)
 
 Transforming existing CCTV infrastructure into an intelligent, AI-assisted border surveillance platform with a blockchain-backed evidence and audit trail.
 
