@@ -1,0 +1,10 @@
+{
+  "description": "Enables users to create and edit videos seamlessly without relying on clideo.com, offering a streamlined, user-friendly video editing experience.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
