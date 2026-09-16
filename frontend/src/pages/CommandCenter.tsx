@@ -169,22 +169,82 @@ export default function CommandCenter() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Left: Primary feed + tracking */}
         <div className="xl:col-span-2 space-y-4">
-          {/* Primary surveillance feed */}
-          <div className="glass-panel overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-900/30">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-blink" />
-                <span className="font-mono text-xs text-cyan-400">PRIMARY FEED — CAM-01</span>
+            {/* Primary surveillance feed */}
+            <div className="glass-panel overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-900/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-blink" />
+                  <span className="font-mono text-xs text-cyan-400">PRIMARY FEED — CAM-01</span>
+                </div>
+                <button onClick={() => nav("/surveillance")} className="font-mono text-xs text-slate-500 hover:text-cyan-400 transition-colors">VIEW ALL →</button>
               </div>
-              <button onClick={() => nav("/surveillance")} className="font-mono text-xs text-slate-500 hover:text-cyan-400 transition-colors">VIEW ALL →</button>
+              <SurveillanceVideo
+                camera={mainCamera}
+                detections={
+                  demoRunning && demoStep >= 1
+                    ? [
+                        (() => {
+                          let x = 40.8;
+                          let y = 63.8;
+                          let width = 5.4;
+                          let height = 18.0;
+                          let zone = "SAFE PERIMETER";
+                          let risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" = "LOW";
+                          let confidence = 94;
+
+                          if (demoStep >= 7) {
+                            x = 52.0;
+                            y = 54.0;
+                            width = 5.0;
+                            height = 16.5;
+                            zone = "RESTRICTED";
+                            risk_level = "CRITICAL";
+                            confidence = 98;
+                          } else if (demoStep >= 5) {
+                            x = 46.5;
+                            y = 58.8;
+                            width = 5.2;
+                            height = 17.4;
+                            zone = "RESTRICTED";
+                            risk_level = "CRITICAL";
+                            confidence = 97;
+                          } else if (demoStep >= 3) {
+                            x = 40.8;
+                            y = 63.8;
+                            width = 5.4;
+                            height = 18.0;
+                            zone = demoStep >= 4 ? "RESTRICTED" : "WARNING";
+                            risk_level = demoStep >= 4 ? "CRITICAL" : "HIGH";
+                            confidence = 96;
+                          } else {
+                            x = 35.5;
+                            y = 58.5;
+                            width = 5.2;
+                            height = 17.0;
+                            zone = "SAFE";
+                            risk_level = "LOW";
+                            confidence = 94;
+                          }
+
+                          return {
+                            id: "d1",
+                            camera_id: "CAM-01",
+                            object_type: "person",
+                            confidence,
+                            tracking_id: "P-021",
+                            bounding_box: { x, y, width, height },
+                            zone,
+                            risk_level,
+                            timestamp: new Date().toISOString(),
+                          };
+                        })(),
+                      ]
+                    : []
+                }
+                showPTZ={demoStep >= 8}
+                onFullscreen={() => nav("/surveillance")}
+              />
             </div>
-            <SurveillanceVideo
-              camera={mainCamera}
-              detections={demoStep >= 2 ? [{ id: "d1", camera_id: "CAM-01", object_type: "person", confidence: 96, tracking_id: "P-021", bounding_box: { x: 62, y: 15, width: 12, height: 30 }, zone: demoStep >= 4 ? "RESTRICTED" : demoStep >= 3 ? "WARNING" : "SAFE", risk_level: demoStep >= 4 ? "CRITICAL" : demoStep >= 3 ? "HIGH" : "LOW", timestamp: new Date().toISOString() }] : []}
-              showPTZ={demoStep >= 8}
-              onFullscreen={() => nav("/surveillance")}
-            />
-          </div>
 
           {/* Active AI Tracks */}
           <div className="glass-panel">

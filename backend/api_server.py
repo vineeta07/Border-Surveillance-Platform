@@ -1,3 +1,13 @@
+import sys
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import cv2
 import numpy as np
 import time
@@ -1629,9 +1639,9 @@ async def chat_assistant(request: dict = {}):
 
 if __name__ == "__main__":
     print("Starting VILA Video Analyzer API Server with Enhanced Chat...")
-    print("🎥 Video Analysis: Upload videos or start live monitoring")
-    print("🚨 Anomaly Detection: Real-time safety monitoring") 
-    print("💬 Smart Chat: Context-aware queries about your video content")
-    print("🔄 Live Updates: Automatic analysis every 20 seconds")
-    print("👁️ Visual Chat: Ask questions about what you see right now")
+    print("- Video Analysis: Upload videos or start live monitoring")
+    print("- Anomaly Detection: Real-time safety monitoring") 
+    print("- Smart Chat: Context-aware queries about your video content")
+    print("- Live Updates: Automatic analysis every 20 seconds")
+    print("- Visual Chat: Ask questions about what you see right now")
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")

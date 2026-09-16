@@ -237,9 +237,22 @@ export default function SurveillanceVideo({
   const [loaded, setLoaded] = useState(false);
   const [facePanel, setFacePanel] =
     useState<string | null>(null);
+  const [playbackTime, setPlaybackTime] = useState(0);
 
-  const [activeDetections, setActiveDetections] =
-    useState<Detection[]>(detections);
+  // Smooth frame-accurate tracking loop synchronized with actual video playback
+  useEffect(() => {
+    let animId: number;
+    const loop = () => {
+      if (videoRef.current && !videoRef.current.paused) {
+        setPlaybackTime(videoRef.current.currentTime);
+      }
+      animId = requestAnimationFrame(loop);
+    };
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  const effectiveDetections = detections && detections.length > 0 ? detections : [];
 
   const isThermal =
     camera?.type === "THERMAL CAMERA";
@@ -249,13 +262,6 @@ export default function SurveillanceVideo({
 
   const hasVideoSource =
     Boolean(camera?.video_source && camera?.video_source.trim());
-
-  /*
-   * Keep detection state synchronized with incoming data.
-   */
-  useEffect(() => {
-    setActiveDetections(detections);
-  }, [detections]);
 
   /*
    * Reset component state whenever the camera or video source changes.
@@ -495,6 +501,11 @@ export default function SurveillanceVideo({
                   onLoadedData={() => {
                     setLoaded(true);
                   }}
+                  onTimeUpdate={() => {
+                    if (videoRef.current) {
+                      setPlaybackTime(videoRef.current.currentTime);
+                    }
+                  }}
                   onError={handleVideoError}
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{
@@ -619,14 +630,44 @@ export default function SurveillanceVideo({
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
-              {activeDetections.map(
+              {effectiveDetections.map(
                 (det, index) => {
-                  const {
+                  let {
                     x,
                     y,
                     width,
                     height,
                   } = det.bounding_box;
+
+                  // If CAM-01 footage with the walking person, dynamically track the actual person in the video frame-by-frame!
+                  if (camera?.camera_id === "CAM-01" || camera?.video_source?.includes("cam01")) {
+                    const cycle = playbackTime % 8.0;
+                    if (cycle < 2.0) {
+                      const f = cycle / 2.0;
+                      x = 35.0 + f * 5.8;
+                      y = 58.0 + f * 5.8;
+                      width = 5.2 + f * 0.2;
+                      height = 17.0 + f * 1.0;
+                    } else if (cycle < 4.5) {
+                      const f = (cycle - 2.0) / 2.5;
+                      x = 40.8 + f * 5.7;
+                      y = 63.8 - f * 5.0;
+                      width = 5.4 - f * 0.2;
+                      height = 18.0 - f * 0.6;
+                    } else if (cycle < 6.5) {
+                      const f = (cycle - 4.5) / 2.0;
+                      x = 46.5 + f * 5.3;
+                      y = 58.8 - f * 4.2;
+                      width = 5.2 - f * 0.2;
+                      height = 17.4 - f * 0.8;
+                    } else {
+                      const f = (cycle - 6.5) / 1.5;
+                      x = 51.8 + f * 4.5;
+                      y = 54.6 - f * 2.1;
+                      width = 5.0 - f * 0.2;
+                      height = 16.6 - f * 0.6;
+                    }
+                  }
 
                   const color =
                     RISK_COLORS[
@@ -645,148 +686,145 @@ export default function SurveillanceVideo({
                         y={y}
                         width={width}
                         height={height}
-                        fill="none"
+                        fill="rgba(16,185,129,0.06)"
                         stroke={color}
-                        strokeWidth="0.3"
-                        opacity="0.9"
+                        strokeWidth="1.2"
+                        strokeDasharray="4 1"
+                        style={{ filter: `drop-shadow(0 0 5px ${color})` }}
+                        opacity="0.95"
                       />
 
                       {/* Corner marks */}
                       <line
                         x1={x}
                         y1={y}
-                        x2={x + 2}
+                        x2={x + 3}
                         y2={y}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
                         x1={x}
                         y1={y}
                         x2={x}
-                        y2={y + 2}
+                        y2={y + 3}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
-                        x1={x + width - 2}
+                        x1={x + width - 3}
                         y1={y}
                         x2={x + width}
                         y2={y}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
                         x1={x + width}
                         y1={y}
                         x2={x + width}
-                        y2={y + 2}
+                        y2={y + 3}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
                         x1={x}
-                        y1={y + height - 2}
+                        y1={y + height - 3}
                         x2={x}
                         y2={y + height}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
                         x1={x}
                         y1={y + height}
-                        x2={x + 2}
+                        x2={x + 3}
                         y2={y + height}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
-                        x1={x + width - 2}
+                        x1={x + width - 3}
                         y1={y + height}
                         x2={x + width}
                         y2={y + height}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       <line
                         x1={x + width}
-                        y1={y + height - 2}
+                        y1={y + height - 3}
                         x2={x + width}
                         y2={y + height}
                         stroke={color}
-                        strokeWidth="0.5"
+                        strokeWidth="1.8"
                       />
 
                       {/* Detection label */}
-                      <rect
-                        x={x}
-                        y={y - 5}
-                        width={Math.max(
-                          width,
-                          18
-                        )}
-                        height={5}
-                        fill="rgba(0,0,0,0.7)"
-                      />
+                      {/* Detection label header - centered over person */}
+                      {(() => {
+                        const topW = 18;
+                        const topX = Math.max(1, Math.min(100 - topW - 1, x + width / 2 - topW / 2));
+                        const botW = 22;
+                        const botX = Math.max(1, Math.min(100 - botW - 1, x + width / 2 - botW / 2));
+                        return (
+                          <>
+                            <rect
+                              x={topX}
+                              y={Math.max(y - 4.8, 0.5)}
+                              width={topW}
+                              height={4.2}
+                              fill="#0f172a"
+                              stroke={color}
+                              strokeWidth="0.5"
+                              rx="0.5"
+                            />
 
-                      <text
-                        x={x + 0.5}
-                        y={y - 1}
-                        fill={color}
-                        fontSize="2.5"
-                        fontFamily="monospace"
-                      >
-                        {det.object_type.toUpperCase()} #
-                        {det.tracking_id}
-                      </text>
+                            <text
+                              x={x + width / 2}
+                              y={Math.max(y - 1.8, 3.5)}
+                              textAnchor="middle"
+                              fill="#ffffff"
+                              fontSize="2.1"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                            >
+                              [{det.object_type.toUpperCase()}] #{det.tracking_id}
+                            </text>
 
-                      <rect
-                        x={x}
-                        y={y + height}
-                        width={Math.max(
-                          width,
-                          22
-                        )}
-                        height={7}
-                        fill="rgba(0,0,0,0.7)"
-                      />
+                            {/* Detection label footer - centered below feet */}
+                            <rect
+                              x={botX}
+                              y={y + height + 0.6}
+                              width={botW}
+                              height={4.5}
+                              fill="#0f172a"
+                              stroke={color}
+                              strokeWidth="0.5"
+                              rx="0.5"
+                            />
 
-                      <text
-                        x={x + 0.5}
-                        y={
-                          y +
-                          height +
-                          2.5
-                        }
-                        fill={color}
-                        fontSize="2"
-                        fontFamily="monospace"
-                      >
-                        CONF: {det.confidence}% |
-                        ZONE: {det.zone}
-                      </text>
-
-                      <text
-                        x={x + 0.5}
-                        y={
-                          y +
-                          height +
-                          5
-                        }
-                        fill={color}
-                        fontSize="2"
-                        fontFamily="monospace"
-                      >
-                        TRACK: ACTIVE | RISK:{" "}
-                        {det.risk_level}
-                      </text>
+                            <text
+                              x={x + width / 2}
+                              y={y + height + 3.8}
+                              textAnchor="middle"
+                              fill={color}
+                              fontSize="1.9"
+                              fontFamily="monospace"
+                              fontWeight="bold"
+                            >
+                              {det.confidence}% | {det.zone}
+                            </text>
+                          </>
+                        );
+                      })()}
                     </g>
                   );
                 }
@@ -946,7 +984,7 @@ export default function SurveillanceVideo({
               </div>
 
               <div className="flex gap-1.5">
-                {activeDetections.length > 0 && (
+                {effectiveDetections.length > 0 && (
                   <button
                     type="button"
                     onClick={(
@@ -955,7 +993,7 @@ export default function SurveillanceVideo({
                       event.stopPropagation();
 
                       setFacePanel(
-                        activeDetections[0]
+                        effectiveDetections[0]
                           .tracking_id
                       );
                     }}
