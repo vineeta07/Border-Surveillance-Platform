@@ -212,9 +212,11 @@ function FaceAnalysisPanel({
   );
 }
 
+const EMPTY_DETECTIONS: Detection[] = [];
+
 export default function SurveillanceVideo({
   camera,
-  detections = [],
+  detections = EMPTY_DETECTIONS,
   showPTZ = false,
   onFullscreen,
   compact = false,
