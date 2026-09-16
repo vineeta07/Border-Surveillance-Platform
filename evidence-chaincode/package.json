@@ -1,0 +1,16 @@
+{
+  "name": "evidence-chaincode",
+  "version": "1.0.0",
+  "description": "Evidence Anchor Chaincode for CCTView",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "fabric-chaincode-node start"
+  },
+  "dependencies": {
+    "fabric-contract-api": "^2.5.3",
+    "fabric-shim": "^2.5.3"
+  }
+}
