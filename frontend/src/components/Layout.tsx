@@ -15,6 +15,12 @@ const NAV_ITEMS = [
   { path: "/settings", label: "Settings", icon: "⊙" },
 ];
 
+interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: string;
+}
+
 function SystemClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -38,10 +44,44 @@ export default function Layout() {
   const { user, signOut, isDemo } = useAuth();
   const nav = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      role: "system",
+      content: "IBVAP AI Assistant online. I can help with threat analysis, camera status, and report generation.",
+      timestamp: new Date().toISOString()
+    }
+  ]);
 
   const handleSignOut = async () => {
     await signOut();
     nav("/login");
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role: "user", content: userMsg, timestamp: new Date().toISOString() }]);
+    setChatLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:3000/api/chat/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg })
+      });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply || "Error: No response", timestamp: new Date().toISOString() }]);
+    } catch (e) {
+      setChatMessages(prev => [...prev, { role: "assistant", content: "Error: Could not connect to AI server.", timestamp: new Date().toISOString() }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   return (
@@ -68,7 +108,7 @@ export default function Layout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="flex-1 overflow-y-auto py-2 flex flex-col">
           {NAV_ITEMS.map(({ path, label, icon, exact }) => (
             <NavLink
               key={path}
@@ -88,6 +128,17 @@ export default function Layout() {
               {!collapsed && <span className="truncate tracking-wider">{label}</span>}
             </NavLink>
           ))}
+          
+          <div className="mt-auto px-1 pt-4 pb-2 border-t border-navy-700/30">
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs font-mono transition-all ${chatOpen ? "text-emerald-400 bg-emerald-900/20" : "text-emerald-500 hover:text-emerald-400 hover:bg-navy-800"}`}
+              title={collapsed ? "AI Chat" : undefined}
+            >
+              <span className="text-sm flex-shrink-0">💬</span>
+              {!collapsed && <span className="truncate tracking-wider font-bold">IBVAP AI CHAT</span>}
+            </button>
+          </div>
         </nav>
 
         {/* User */}
@@ -129,7 +180,7 @@ export default function Layout() {
 
           <div className="flex items-center gap-4">
             {isDemo && (
-              <div className="px-2 py-0.5 border border-amber-700 font-mono text-xs text-amber-400 animate-pulse-cyan" style={{ background: "rgba(245,158,11,0.08)" }}>
+              <div className="px-2 py-0.5 border border-red-500 font-mono text-xs text-red-500 animate-pulse-cyan" style={{ background: "rgba(239,68,68,0.15)" }}>
                 ● DEMO MODE
               </div>
             )}
@@ -138,8 +189,74 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto" style={{ background: "var(--color-navy-950)" }}>
-          <Outlet />
+        <main className="flex-1 overflow-y-auto relative flex" style={{ background: "var(--color-navy-950)" }}>
+          <div className="flex-1 overflow-y-auto relative z-0">
+            <Outlet />
+          </div>
+
+          {/* Slide-out AI Chat Panel */}
+          {chatOpen && (
+            <div className="w-80 border-l border-slate-200 flex flex-col bg-white z-10 animate-slide-in shadow-xl">
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-slate-900 font-bold tracking-wider">
+                    AI ASSISTANT
+                  </span>
+                </div>
+                <button onClick={() => setChatOpen(false)} className="text-slate-400 hover:text-slate-600 text-xs font-mono">
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[9px] font-mono text-black font-bold">{msg.role === "user" ? "OPERATOR" : "IBVAP AI"}</span>
+                      <span className="text-[9px] font-mono text-black">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div 
+                      className={`p-2.5 rounded text-xs font-mono max-w-[90%] whitespace-pre-wrap leading-relaxed ${
+                        msg.role === "user" 
+                          ? "bg-black text-white border border-black" 
+                          : msg.role === "system"
+                            ? "bg-white text-black border border-black text-[10px]"
+                            : "bg-white text-black border border-black shadow-sm"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex flex-col items-start">
+                     <div className="p-2.5 rounded bg-white text-black border border-black text-xs font-mono animate-pulse">
+                       Processing query...
+                     </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 border-t border-slate-200 bg-white">
+                <form onSubmit={handleSendMessage} className="relative">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask AI Assistant..."
+                    className="w-full bg-white border border-black rounded pl-3 pr-10 py-2 text-xs font-mono text-black focus:outline-none focus:ring-1 focus:ring-black"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="absolute right-2 top-1.5 p-1 text-black hover:text-gray-600 disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

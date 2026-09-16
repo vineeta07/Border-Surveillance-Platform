@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const hourlyData = [
@@ -35,9 +36,15 @@ const TOOLTIP_STYLE = { background: "#ffffff", border: "1px solid #e2e8f0", bord
 export default function Analytics() {
   return (
     <div className="p-4 space-y-4">
-      <div>
-        <div className="font-mono text-xs text-cyan-700 tracking-widest">IBVAP / ANALYTICS</div>
-        <h1 className="font-display font-bold text-2xl text-slate-900 tracking-wide">Threat Intelligence & Analytics</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div className="font-mono text-xs text-cyan-700 tracking-widest">IBVAP / ANALYTICS</div>
+          <h1 className="font-display font-bold text-2xl text-slate-900 tracking-wide">Threat Intelligence & Analytics</h1>
+        </div>
+        <Link to="/reports" className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium rounded transition-colors flex items-center gap-2 font-mono">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          VIEW REPORTS
+        </Link>
       </div>
 
       {/* Stat tiles */}

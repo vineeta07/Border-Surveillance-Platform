@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 const API_BASE = "http://localhost:8000";
 
@@ -383,8 +384,13 @@ export default function VideoAnalysis() {
             className="glass-panel p-4 space-y-3"
             style={{ borderColor: "rgba(239,68,68,0.3)" }}
           >
-            <div className="font-mono text-xs text-red-400 tracking-wider">
-              Anomaly Detection Report
+            <div className="flex items-center justify-between">
+              <div className="font-mono text-xs text-red-400 tracking-wider">
+                Anomaly Detection Report
+              </div>
+              <Link to="/reports" className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold rounded transition-colors font-mono">
+                VIEW FULL REPORT
+              </Link>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[

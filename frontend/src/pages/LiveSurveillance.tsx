@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { DEMO_CAMERAS } from "../services/demoData";
 import type { Camera } from "../types";
 import SurveillanceVideo from "../components/SurveillanceVideo";
@@ -47,6 +48,9 @@ export default function LiveSurveillance() {
             <button onClick={() => setView("grid")} className={`px-2 py-0.5 font-mono text-xs border transition-colors ${view === "grid" ? "border-cyan-500 text-cyan-400" : "border-slate-700 text-slate-500 hover:border-slate-500"}`}>GRID</button>
             <button onClick={() => setView("single")} className={`px-2 py-0.5 font-mono text-xs border transition-colors ${view === "single" ? "border-cyan-500 text-cyan-400" : "border-slate-700 text-slate-500 hover:border-slate-500"}`}>SINGLE</button>
           </div>
+          <Link to="/reports" className="px-3 py-1.5 font-mono text-xs border border-cyan-800 text-cyan-400 hover:border-cyan-600 transition-colors" style={{ background: "rgba(34,211,238,0.05)" }}>
+            📄 REPORTS
+          </Link>
           <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 font-mono text-xs border border-cyan-800 text-cyan-400 hover:border-cyan-600 transition-colors" style={{ background: "rgba(34,211,238,0.05)" }}>
             + ADD CAMERA
           </button>

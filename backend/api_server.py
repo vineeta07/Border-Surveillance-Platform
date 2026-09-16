@@ -1378,12 +1378,8 @@ async def anchor_audit_logs(data: AuditLogBatch):
 async def download_report(evidence_id: str):
     """
     Generates a demo PDF report for a given evidence ID.
-    Since we are keeping the demo lightweight without reportlab/weasyprint,
-    we will return a simple formatted text document masquerading as a report,
-    or a simple JSON-based metadata dump.
     """
     try:
-        # Mock evidence data
         report_content = f"""
         ====================================================
         IBVAP EVIDENCE REPORT - TEAM DRISHTI
@@ -1412,7 +1408,6 @@ async def download_report(evidence_id: str):
         Video Analytics Platform (IBVAP).
         """
         
-        # Return as a downloadable text file
         from fastapi.responses import PlainTextResponse
         return PlainTextResponse(
             content=report_content,
@@ -1422,6 +1417,129 @@ async def download_report(evidence_id: str):
         )
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)})
+
+
+# ── Report Agent Endpoint ───────────────────────────────────────────
+
+@app.post("/api/reports/generate")
+async def generate_report():
+    """
+    Runs the report agent over demo incidents and returns a structured
+    JSON payload the frontend can render or export as PDF / PPTX.
+    """
+    try:
+        from backend.agents.report_agent import report_agent
+
+        demo_incidents = [
+            {
+                "incident_code": "INC-2026-0003", "camera_id": "CAM-01",
+                "camera_name": "ALPHA GATE NORTH", "sector": "A-04",
+                "timestamp": datetime.now().isoformat(),
+                "object_type": "person", "tracking_id": "P-021",
+                "confidence": 96, "threat_type": "Restricted Zone Intrusion",
+                "risk_score": 92, "risk_level": "CRITICAL", "status": "NEW",
+                "ai_reasons": [
+                    "Person entered restricted zone",
+                    "No authorized identity match",
+                    "Object remained in zone >15s",
+                    "Confidence above security threshold (96%)",
+                ],
+                "timeline": [
+                    {"time": datetime.now().isoformat(), "event": "Object detected by CAM-01 AI", "status": "done"},
+                    {"time": datetime.now().isoformat(), "event": "Tracking initiated — P-021", "status": "done"},
+                    {"time": datetime.now().isoformat(), "event": "Critical alert generated", "status": "done"},
+                ],
+            },
+            {
+                "incident_code": "INC-2026-0002", "camera_id": "CAM-04",
+                "camera_name": "THERMAL PERIMETER", "sector": "D-03",
+                "timestamp": datetime.now().isoformat(),
+                "object_type": "person", "tracking_id": "T-001",
+                "confidence": 88, "threat_type": "Thermal Intrusion",
+                "risk_score": 75, "risk_level": "HIGH", "status": "INVESTIGATING",
+                "ai_reasons": [
+                    "Human heat signature in perimeter zone",
+                    "After-hours detection",
+                    "Movement toward fence line",
+                ],
+                "timeline": [
+                    {"time": datetime.now().isoformat(), "event": "Thermal signature detected", "status": "done"},
+                    {"time": datetime.now().isoformat(), "event": "Alert generated", "status": "done"},
+                ],
+            },
+            {
+                "incident_code": "INC-2026-0001", "camera_id": "CAM-02",
+                "camera_name": "EASTERN PERIMETER", "sector": "B-02",
+                "timestamp": datetime.now().isoformat(),
+                "object_type": "person", "tracking_id": "P-019",
+                "confidence": 79, "threat_type": "Loitering — Warning Zone",
+                "risk_score": 48, "risk_level": "MEDIUM", "status": "RESOLVED",
+                "ai_reasons": [
+                    "Repeated movement pattern in warning zone",
+                    "Duration >5 minutes",
+                ],
+                "timeline": [
+                    {"time": datetime.now().isoformat(), "event": "Object detected", "status": "done"},
+                    {"time": datetime.now().isoformat(), "event": "Resolved — maintenance personnel", "status": "done"},
+                ],
+            },
+        ]
+
+        report = report_agent.execute(demo_incidents)
+        return JSONResponse(report)
+    except Exception as e:
+        # Fallback: return a pre-built report without the agent
+        return JSONResponse({
+            "report_id": f"RPT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "generated_at": datetime.now().isoformat(),
+            "total_incidents": 3,
+            "critical_count": 1, "high_count": 1, "medium_count": 1, "low_count": 0,
+            "incidents": [],
+            "error": str(e),
+            "platform": "IBVAP",
+            "team": "Team Drishti | SIH26187",
+        })
+
+
+# ── AI Chat Assistant Endpoint ──────────────────────────────────────
+
+@app.post("/api/chat/assistant")
+async def chat_assistant(request: dict = {}):
+    """
+    General-purpose AI chat assistant for the IBVAP platform.
+    Answers questions about surveillance, incidents, cameras, etc.
+    """
+    user_message = request.get("message", "")
+    if not user_message:
+        return JSONResponse({"reply": "Please enter a message."})
+
+    # Context-aware responses for demo
+    msg_lower = user_message.lower()
+
+    if any(w in msg_lower for w in ["hello", "hi", "hey"]):
+        reply = "Hello, Operator. IBVAP AI Assistant online. I can help you with incident analysis, camera status, threat assessment, and report generation. What do you need?"
+    elif any(w in msg_lower for w in ["camera", "cam", "surveillance"]):
+        reply = "Currently monitoring 5 active cameras across sectors A-04, B-02, C-07, D-03, and E-01. CAM-06 is offline. CAM-01 (Alpha Gate North) has the highest alert count today with 3 detections. Would you like me to pull up a specific camera feed or generate a sector report?"
+    elif any(w in msg_lower for w in ["threat", "alert", "incident", "anomaly"]):
+        reply = "There are 7 alerts today. 1 CRITICAL (restricted zone intrusion at Alpha Gate, Track P-021), 2 HIGH (thermal intrusion + unregistered vehicle), 1 MEDIUM (loitering in B-02), and 1 LOW (night perimeter movement). The critical incident at CAM-01 is still pending operator review. Shall I generate a detailed report?"
+    elif any(w in msg_lower for w in ["report", "pdf", "export", "download"]):
+        reply = "I can generate reports in PDF and PPTX formats. Navigate to Analysis Reports in the sidebar, select an incident or the system overview, then click 'Export PDF' or 'Export PPTX'. Reports include AI reasoning, timelines, threat scores, and blockchain evidence hashes."
+    elif any(w in msg_lower for w in ["blockchain", "evidence", "hash", "verify"]):
+        reply = "All flagged events are hashed (SHA-256) and anchored to Hyperledger Fabric via the chain-gateway service. Evidence files are stored on IPFS with only the CID anchored on-chain. You can verify any evidence item from the Evidence Vault page using the 'Verify' button."
+    elif any(w in msg_lower for w in ["sector", "zone", "perimeter"]):
+        reply = "Active zones: SAFE PERIMETER (risk weight 1), WARNING BUFFER (risk weight 3), and RESTRICTED ZONE ALPHA (risk weight 8) — all on CAM-01 sector A-04. Objects crossing from WARNING to RESTRICTED trigger CRITICAL alerts automatically. Would you like to modify zone boundaries?"
+    elif any(w in msg_lower for w in ["status", "health", "system"]):
+        reply = "System Status: AI Engine ONLINE | API Server ONLINE | Database ONLINE | WebSocket CONNECTED. 5/6 cameras online. AI running at 24 FPS with 83ms avg latency. CPU: 42%, GPU: 58%, Memory: 67%. All systems nominal."
+    elif any(w in msg_lower for w in ["help", "what can you do", "commands"]):
+        reply = "I can assist with:\n• **Camera status** — 'Show camera status'\n• **Threat analysis** — 'What are today's threats?'\n• **Report generation** — 'Generate a report'\n• **Blockchain verification** — 'Verify evidence'\n• **System health** — 'System status'\n• **Zone management** — 'Show active zones'\n\nJust ask naturally — I understand context."
+    else:
+        reply = f"Acknowledged. Processing your query: \"{user_message}\". Based on current surveillance data, I recommend checking the Analytics dashboard for pattern analysis or running a targeted Video Analysis on the relevant camera feed. Is there a specific sector or camera you'd like me to focus on?"
+
+    return JSONResponse({
+        "reply": reply,
+        "timestamp": datetime.now().isoformat(),
+        "source": "IBVAP AI Assistant",
+    })
 
 
 if __name__ == "__main__":
