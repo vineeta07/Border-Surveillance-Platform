@@ -1634,4 +1634,4 @@ if __name__ == "__main__":
     print("💬 Smart Chat: Context-aware queries about your video content")
     print("🔄 Live Updates: Automatic analysis every 20 seconds")
     print("👁️ Visual Chat: Ask questions about what you see right now")
-    uvicorn.run(app, host="127.0.0.1", port=3000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")

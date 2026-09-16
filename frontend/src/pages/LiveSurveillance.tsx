@@ -140,24 +140,43 @@ export default function LiveSurveillance() {
 
       {/* Grid view */}
       {view === "grid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map(cam => (
-            <div key={cam.id} className={`glass-panel overflow-hidden cursor-pointer transition-all ${selected && selected.id === cam.id ? "border-glow-cyan" : ""}`}
-              onClick={() => { setSelected(cam); setView("single"); }}>
-              <SurveillanceVideo camera={cam} onFullscreen={() => setFullscreen(cam)} />
-              <div className="px-3 py-2 flex items-center justify-between border-t border-navy-700/30">
-                <div>
-                  <div className="font-mono text-xs text-slate-700 font-medium">{cam.camera_id} — {cam.name}</div>
-                  <div className="font-mono text-[10px] text-slate-500">Sector {cam.sector} | {cam.type}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-mono text-[10px] font-bold" style={{ color: cam.status === "ONLINE" ? "#10b981" : "#ef4444" }}>{cam.status}</div>
-                  <div className="font-mono text-[10px] text-slate-500">AI: {cam.ai_status}</div>
-                </div>
-              </div>
+        <>
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <div className="text-4xl mb-4">📹</div>
+              <h3 className="font-display font-bold text-lg text-slate-300">No Cameras Found</h3>
+              <p className="font-mono text-sm max-w-md text-center mt-2 mb-6">
+                You are in Real Data Mode, but no camera streams have been added yet. 
+                Make sure your backend API is running, then click the button below to add your first RTSP stream.
+              </p>
+              <button 
+                onClick={() => setShowAddModal(true)} 
+                className="px-4 py-2 font-mono text-sm border border-cyan-800 text-cyan-400 hover:border-cyan-600 transition-colors" 
+                style={{ background: "rgba(34,211,238,0.05)" }}>
+                + ADD CAMERA
+              </button>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {filtered.map(cam => (
+                <div key={cam.id} className={`glass-panel overflow-hidden cursor-pointer transition-all ${selected && selected.id === cam.id ? "border-glow-cyan" : ""}`}
+                  onClick={() => { setSelected(cam); setView("single"); }}>
+                  <SurveillanceVideo camera={cam} onFullscreen={() => setFullscreen(cam)} />
+                  <div className="px-3 py-2 flex items-center justify-between border-t border-navy-700/30">
+                    <div>
+                      <div className="font-mono text-xs text-slate-700 font-medium">{cam.camera_id} — {cam.name}</div>
+                      <div className="font-mono text-[10px] text-slate-500">Sector {cam.sector} | {cam.type}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-[10px] font-bold" style={{ color: cam.status === "ONLINE" ? "#10b981" : "#ef4444" }}>{cam.status}</div>
+                      <div className="font-mono text-[10px] text-slate-500">AI: {cam.ai_status}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Single view */}
