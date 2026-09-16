@@ -23,8 +23,11 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # NVIDIA API Configuration
-NVIDIA_API_KEY = "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"
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "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")
 VILA_API_URL = "https://ai.api.nvidia.com/v1/vlm/nvidia/vila"
 
 app = FastAPI(title="VILA Video Analyzer API")
@@ -603,6 +606,76 @@ async def set_processing_interval(data: dict):
             "success": False,
             "error": str(e)
         })
+
+# --- Camera CRUD API ---
+from pydantic import BaseModel
+
+class CameraConfig(BaseModel):
+    id: str
+    name: str
+    rtsp_url: str
+    type: str = "RGB"
+
+CAMERAS_FILE = "cameras.json"
+
+def get_cameras():
+    if os.path.exists(CAMERAS_FILE):
+        with open(CAMERAS_FILE, "r") as f:
+            try:
+                return json.load(f)
+            except Exception:
+                return []
+    return []
+
+def save_cameras(cameras):
+    with open(CAMERAS_FILE, "w") as f:
+        json.dump(cameras, f, indent=2)
+
+@app.get("/api/cameras")
+async def api_get_cameras():
+    return JSONResponse({"success": True, "cameras": get_cameras()})
+
+@app.post("/api/cameras")
+async def api_add_camera(camera: CameraConfig):
+    cameras = get_cameras()
+    # Check if id exists
+    for i, c in enumerate(cameras):
+        if c["id"] == camera.id:
+            cameras[i] = camera.dict()
+            save_cameras(cameras)
+            return JSONResponse({"success": True, "camera": camera.dict()})
+    cameras.append(camera.dict())
+    save_cameras(cameras)
+    return JSONResponse({"success": True, "camera": camera.dict()})
+
+@app.delete("/api/cameras/{camera_id}")
+async def api_delete_camera(camera_id: str):
+    cameras = get_cameras()
+    cameras = [c for c in cameras if c["id"] != camera_id]
+    save_cameras(cameras)
+    return JSONResponse({"success": True})
+
+def generate_frames(rtsp_url):
+    # MJPEG stream generator
+    cap = cv2.VideoCapture(rtsp_url)
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+        # Optional: resize to reduce bandwidth
+        frame = cv2.resize(frame, (640, 480))
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.get("/api/camera-stream/{camera_id}")
+async def camera_stream(camera_id: str):
+    cameras = get_cameras()
+    rtsp_url = next((c["rtsp_url"] for c in cameras if c["id"] == camera_id), None)
+    if not rtsp_url:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    return StreamingResponse(generate_frames(rtsp_url), media_type="multipart/x-mixed-replace; boundary=frame")
         
 # Add this test endpoint to api_server.py
 @app.get("/api/test-custom-anomalies")
@@ -775,7 +848,7 @@ async def upload_video_anomalies(file: UploadFile = File(...)):
         }, status_code=500)
 
 @app.post("/api/start-live-tracking")
-async def start_live_tracking():
+async def start_live_tracking(data: dict = None):
     """Start live video tracking with camera"""
     global live_tracking_active, live_cap, last_analysis_time, frame_accumulator, current_live_frame, live_reports_content, live_video_context
     
@@ -793,27 +866,41 @@ async def start_live_tracking():
             "last_updated": None
         }
         
-        # Try different camera indices
-        camera_indices = [0, 1, 2]
+        rtsp_url = data.get("rtsp_url") if data else None
         live_cap = None
         
-        for idx in camera_indices:
-            test_cap = cv2.VideoCapture(idx)
+        if rtsp_url:
+            test_cap = cv2.VideoCapture(rtsp_url)
             if test_cap.isOpened():
                 ret, test_frame = test_cap.read()
                 if ret and test_frame is not None:
                     live_cap = test_cap
-                    print(f"Successfully opened camera index {idx}")
-                    break
+                    print(f"Successfully opened RTSP stream {rtsp_url}")
                 else:
                     test_cap.release()
             else:
                 test_cap.release()
-        
+        else:
+            # Try different camera indices
+            camera_indices = [0, 1, 2]
+            
+            for idx in camera_indices:
+                test_cap = cv2.VideoCapture(idx)
+                if test_cap.isOpened():
+                    ret, test_frame = test_cap.read()
+                    if ret and test_frame is not None:
+                        live_cap = test_cap
+                        print(f"Successfully opened camera index {idx}")
+                        break
+                    else:
+                        test_cap.release()
+                else:
+                    test_cap.release()
+            
         if live_cap is None:
             return JSONResponse({
                 "success": False,
-                "error": "Could not access any camera. Please check camera permissions."
+                "error": "Could not access any camera. Please check camera permissions or RTSP URL."
             })
         
         # Configure camera
@@ -1297,8 +1384,6 @@ async def get_suggested_questions():
         return JSONResponse({
             "success": True,
             "suggestions": suggestions
-        })
-        
         })
         
     except Exception as e:

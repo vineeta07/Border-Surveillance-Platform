@@ -474,23 +474,34 @@ export default function SurveillanceVideo({
         ) : (
           <>
             {!videoError && hasVideoSource ? (
-              <video
-                ref={videoRef}
-                src={camera.video_source}
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                onLoadedData={() => {
-                  setLoaded(true);
-                }}
-                onError={handleVideoError}
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{
-                  filter: filterStyle,
-                }}
-              />
+              camera.video_source?.includes("/api/camera-stream") ? (
+                <img
+                  src={camera.video_source}
+                  onLoad={() => setLoaded(true)}
+                  onError={handleVideoError}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ filter: filterStyle }}
+                  alt="Camera Stream"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={camera.video_source}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  onLoadedData={() => {
+                    setLoaded(true);
+                  }}
+                  onError={handleVideoError}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    filter: filterStyle,
+                  }}
+                />
+              )
             ) : (
               <div
                 className="absolute inset-0"

@@ -1,24 +1,105 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { DEMO_CAMERAS } from "../services/demoData";
 import type { Camera } from "../types";
 import SurveillanceVideo from "../components/SurveillanceVideo";
+import { useAuth } from "../hooks/useAuth";
 
 type ViewMode = "grid" | "single";
 
 export default function LiveSurveillance() {
-  const [cameras] = useState<Camera[]>(() =>
-    Array.isArray(DEMO_CAMERAS) ? DEMO_CAMERAS.filter(Boolean) : []
+  const { isDemo } = useAuth();
+  const [cameras, setCameras] = useState<Camera[]>(() =>
+    isDemo && Array.isArray(DEMO_CAMERAS) ? DEMO_CAMERAS.filter(Boolean) : []
   );
 
   const [view, setView] = useState<ViewMode>("grid");
 
   const [selected, setSelected] = useState<Camera | null>(() =>
-    (Array.isArray(DEMO_CAMERAS) ? DEMO_CAMERAS.find(Boolean) : null) ?? null
+    (isDemo && Array.isArray(DEMO_CAMERAS) ? DEMO_CAMERAS.find(Boolean) : null) ?? null
   );
   const [fullscreen, setFullscreen] = useState<Camera | null>(null);
   const [filterSector, setFilterSector] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Form state
+  const [newCamera, setNewCamera] = useState({
+    name: "",
+    camera_id: "",
+    sector: "",
+    location: "",
+    rtsp_url: "",
+    lat: "",
+    lng: ""
+  });
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    if (isDemo) return;
+    
+    fetch(`${API_BASE}/api/cameras`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.cameras)) {
+          // Map backend CameraConfig to frontend Camera type
+          const mapped = data.cameras.map((c: any) => ({
+            id: c.id,
+            camera_id: c.id,
+            name: c.name,
+            sector: c.sector || "General",
+            type: c.type || "RGB CAMERA",
+            status: "ONLINE",
+            location: c.location || "Unknown",
+            fps: 30,
+            resolution: "1920x1080",
+            ai_status: "ACTIVE",
+            reliability_score: 99,
+            alerts_today: 0,
+            video_source: c.rtsp_url ? `${API_BASE}/api/camera-stream/${c.id}` : "",
+            isReal: true, // flag to indicate it's from backend
+            rtsp_url: c.rtsp_url
+          }));
+          setCameras(mapped);
+          if (!selected && mapped.length > 0) setSelected(mapped[0]);
+        }
+      })
+      .catch(err => console.error("Failed to load cameras:", err));
+  }, [isDemo]);
+
+  const handleAddCamera = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isDemo) {
+      alert("Cannot add real cameras in Demo Mode");
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/cameras`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newCamera.camera_id,
+          name: newCamera.name,
+          rtsp_url: newCamera.rtsp_url,
+          sector: newCamera.sector,
+          location: newCamera.location,
+          type: "RGB CAMERA"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowAddModal(false);
+        // Refresh page to load new camera stream
+        window.location.reload();
+      } else {
+        alert("Error adding camera: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error");
+    }
+  };
 
   const sectors = ["ALL", ...Array.from(new Set(cameras.map(c => c.sector)))];
   const filtered = cameras.filter(
@@ -141,19 +222,23 @@ export default function LiveSurveillance() {
               <span className="font-display font-bold text-lg text-cyan-600">ADD CAMERA</span>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-700">✕</button>
             </div>
-            <form className="space-y-3" onSubmit={e => { e.preventDefault(); setShowAddModal(false); }}>
+            <form className="space-y-3" onSubmit={handleAddCamera}>
               {[
-                ["Camera Name", "text", "Alpha Gate South"],
-                ["Camera ID", "text", "CAM-07"],
-                ["Sector", "text", "G-01"],
-                ["Location", "text", "South Gate"],
-                ["RTSP URL", "text", "rtsp://..."],
-                ["Latitude", "number", "23.41"],
-                ["Longitude", "number", "71.27"],
-              ].map(([label, type, placeholder]) => (
+                ["Camera Name", "text", "Alpha Gate South", "name"],
+                ["Camera ID", "text", "CAM-07", "camera_id"],
+                ["Sector", "text", "G-01", "sector"],
+                ["Location", "text", "South Gate", "location"],
+                ["RTSP URL", "text", "rtsp://...", "rtsp_url"],
+                ["Latitude", "number", "23.41", "lat"],
+                ["Longitude", "number", "71.27", "lng"],
+              ].map(([label, type, placeholder, field]) => (
                 <div key={label}>
                   <label className="block font-mono text-xs text-cyan-700 tracking-widest mb-1">{label.toUpperCase()}</label>
-                  <input type={type} placeholder={placeholder} className="w-full px-3 py-2 font-mono text-sm text-slate-800 border border-slate-300 focus:border-cyan-500 outline-none rounded bg-slate-50" />
+                  <input type={type} placeholder={placeholder} 
+                    value={(newCamera as any)[field]}
+                    onChange={e => setNewCamera({...newCamera, [field]: e.target.value})}
+                    required
+                    className="w-full px-3 py-2 font-mono text-sm text-slate-800 border border-slate-300 focus:border-cyan-500 outline-none rounded bg-slate-50" />
                 </div>
               ))}
               <div className="flex gap-2 pt-2">
